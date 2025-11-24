@@ -32,7 +32,7 @@ def get_color_encoding(objects: list[dict]) -> dict[str, str]:
 def annotate_image(
     img_bytes: bytes, objects: list[dict], colors: dict[str, str]
 ) -> str:
-    logger.info(f"Annotating image with {len(objects)}")
+    logger.info(f"Annotating image with {len(objects)} objects")
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     draw = ImageDraw.Draw(img)
     w, h = img.size
