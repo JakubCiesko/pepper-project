@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pepper Object Detection Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="/static/pepper_icon.png"/>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+
+    <h1 class="text-3xl font-bold mb-6">Pepper Live Object Detection Dashboard</h1>
+
+    <!-- Annotated Image
+    default it just random ai generted image -->
+    <div class="w-full max-w-3xl relative">
+        <img id="annotated-image" class="w-full h-auto rounded border border-gray-300 shadow" src="/static/pepper_icon.png" alt="Annotated Detection Image">
+    </div>
+
+    <!-- Detection Text Info -->
+    <div id="detections" class="w-full max-w-3xl bg-white rounded shadow p-4 mb-6">
+        <p class="text-gray-500">No detections yet...</p>
+    </div>
+
+
+    <script>
+        const ws = new WebSocket(`ws://${location.host}/dashboard/events`);
+
+        const detectionsContainer = document.getElementById("detections");
+        const annotatedImage = document.getElementById("annotated-image");
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            // Clear previous data
+            detectionsContainer.innerHTML = "";
+            if (data.objects && data.objects.length > 0) {
+            data.objects.forEach(obj => {
+                const div = document.createElement("div");
+                div.className = "obj mb-2 p-2 rounded";
+
+                // Use color from backend colors dict
+                const labelColor = data.colors && data.colors[obj.label]
+                    ? `rgb(${data.colors[obj.label].join(",")})`
+                    : "#ddd";
+
+                div.style.backgroundColor = labelColor;
+                div.style.color = "black";
+
+                div.innerHTML = `<strong>${obj.label}</strong> (${obj.confidence.toFixed(2)}) - bbox: [${obj.bbox.map(x => x.toFixed(1)).join(", ")}]`;
+                detectionsContainer.appendChild(div);
+            });
+            } else {
+                detectionsContainer.innerHTML = `<p class="text-gray-500">No objects detected</p>`;
+            }
+            // image
+            if (data.image) {
+                annotatedImage.src = `data:image/jpeg;base64,${data.image}`;
+                //annotatedImage.classList.remove("hidden");
+            }
+            //else {
+            //    annotatedImage.classList.add("hidden");
+            //}
+        };
+    </script>
+
+</body>
+</html>

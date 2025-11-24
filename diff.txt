@@ -1,0 +1,27 @@
+diff --git a/server/app/main.py b/server/app/main.py
+index e69de29..4a492f2 100644
+--- a/server/app/main.py
++++ b/server/app/main.py
+@@ -0,0 +1,10 @@
++from fastapi import FastAPI
++from fastapi.staticfiles import StaticFiles
++from app.routes import detect, dashboard
++
++app = FastAPI(title="Pepper Object Detection Server", version="0.1.0")
++app.mount("/static", StaticFiles(directory="app/static"), name="static")
++
++
++app.include_router(detect.router, prefix="/api")
++app.include_router(dashboard.router)
+diff --git a/server/requirements.txt b/server/requirements.txt
+index 5320fff..7850d0c 100644
+--- a/server/requirements.txt
++++ b/server/requirements.txt
+@@ -44,6 +44,7 @@ platformdirs==4.5.0
+ pre_commit==4.5.0
+ pydantic==2.12.4
+ pydantic_core==2.41.5
++python-multipart==0.0.20
+ pytokens==0.3.0
+ PyYAML==6.0.3
+ requests==2.32.5

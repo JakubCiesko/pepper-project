@@ -44,6 +44,7 @@ platformdirs==4.5.0
 pre_commit==4.5.0
 pydantic==2.12.4
 pydantic_core==2.41.5
+python-multipart==0.0.20
 pytokens==0.3.0
 PyYAML==6.0.3
 requests==2.32.5

@@ -1,0 +1,7 @@
+server/logs/
+server/detection_models/*
+!server/detection_models/.gitkeep
+server/storage/*
+!server/storage/.gitkeep
+**/__pycache__/
+**/.idea/
