@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI
@@ -23,7 +24,19 @@ for uv_logger in ("uvicorn", "uvicorn.error", "uvicorn.access"):
 logger = logging.getLogger(__name__)
 logger.info("Initializing FastAPI server...")
 
-app = FastAPI(title="Pepper Object Detection Server", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Startup: Initializing Detection Service Translations...")
+    await detect.detection_service.initialize_translations()
+    logger.info("Startup: Translations loaded.")
+    yield
+    logger.info("Shutdown: Cleaning up...")
+
+
+app = FastAPI(
+    title="Pepper Object Detection Server", version="0.1.0", lifespan=lifespan
+)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 

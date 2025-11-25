@@ -2,13 +2,16 @@ from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+from pydantic_settings import SettingsConfigDict
 import torch
 
 
 class YOLOSettings(BaseSettings):
-    model_name: str = Field("yolov8n.pt", description="YOLO model name")
+    model_config = SettingsConfigDict(env_prefix="PEPPER_")
+    model_name: str = Field("rtdetr-x.pt", description="Model name")
     model_url: str = Field(
-        "https://ultralytics.com/assets/yolov8n.pt", description="YOLO model url"
+        "https://github.com/ultralytics/assets/releases/download/v8.3.0/rtdetr-x.pt",
+        description="Download URL",
     )
     fuse_model: bool = Field(
         True, description="boolean flag whether to fuse model or not"
@@ -17,7 +20,8 @@ class YOLOSettings(BaseSettings):
         None,
         description="device for loading and using model, default to cuda if not set and available",
     )
-    imgsz: int = Field(576 // 2, description="image size")
+    imgsz: int = Field(1280, description="image size")
+    language: str = Field("en", description="language of labels")
 
     @property
     def device_actual(self):

@@ -1,8 +1,11 @@
+import asyncio
 import io
+import json
 import logging
 from pathlib import Path
 import urllib.request
 
+from googletrans import Translator
 from PIL import Image
 from ultralytics import YOLO
 
@@ -21,11 +24,17 @@ def download_model(model_url: str, model_path: Path):
 
 class DetectionService:
     def __init__(self, settings: YOLOSettings = None):
-        self.settings = settings or YOLOSettings()
+        self.settings = settings or YOLOSettings(language="cs")
         self.model_path: Path = self.settings.model_path
         self.device = self.settings.device_actual
         self.imgsz = self.settings.imgsz
         self.model = self.load_model()
+
+        self.translate_to = self.settings.language or "en"
+        self.translation_path = self.model_path.with_suffix(
+            f".{self.translate_to}.labels.json"
+        )
+        self.translations = {}
 
     def load_model(self):
         if not self.model_path.exists():
@@ -39,6 +48,42 @@ class DetectionService:
         logger.info(f"Model fully loaded to device: {self.device}")
         return model
 
+    async def initialize_translations(self):
+        if self.translate_to.strip().lower() != "en":
+            logger.info(f"Initializing translation to language: {self.translate_to}")
+            self.translations = await self.load_or_create_translations()
+        else:
+            logger.info(
+                f"No translation needed the language is set to: {self.translate_to}"
+            )
+
+    async def load_or_create_translations(self) -> dict:
+        if self.translation_path.exists():
+            logger.info(f"Loading existing translations from {self.translation_path}")
+            with open(self.translation_path, encoding="utf-8") as f:
+                return json.load(f)
+
+        logger.info("No translation file found. Generating translations...")
+        all_labels = list(self.model.names.values())
+
+        # CHANGED: Called directly with await, no asyncio.run()
+        translations = await self.translate_all_labels(all_labels)
+
+        with open(self.translation_path, "w", encoding="utf-8") as f:
+            json.dump(translations, f, ensure_ascii=False, indent=2)
+        logger.info(f"Saved translations to {self.translation_path}")
+        return translations
+
+    async def translate_label(self, label: str) -> tuple:
+        translator = Translator()
+        result = await translator.translate(label, dest=self.translate_to)
+        return label, result.text
+
+    async def translate_all_labels(self, labels: list[str]) -> dict:
+        tasks = [asyncio.create_task(self.translate_label(lbl)) for lbl in labels]
+        results = await asyncio.gather(*tasks)
+        return dict(results)
+
     def detect(self, image_bytes: bytes) -> DetectionResponse:
         logger.info("Running detection on image")
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -50,9 +95,15 @@ class DetectionService:
             for box, cls, conf in zip(
                 r.boxes.xyxy, r.boxes.cls, r.boxes.conf, strict=True
             ):
+                en_label = self.model.names[int(cls)]
+                label = (
+                    en_label
+                    if self.translate_to.strip().lower() == "en"
+                    else self.translations.get(en_label)
+                )
                 objects.append(
                     DetectionObject(
-                        label=self.model.names[int(cls)],
+                        label=label,
                         confidence=float(conf),
                         bbox=[float(x) for x in box],
                     )

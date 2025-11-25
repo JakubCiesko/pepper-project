@@ -6,6 +6,7 @@ import random
 
 from fastapi import APIRouter
 from fastapi import UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from PIL import Image
 from PIL import ImageDraw
@@ -38,7 +39,13 @@ def annotate_image(
     w, h = img.size
     num_objects = max(1, len(objects))
     font_size = max(10, int(h * 0.05 / (num_objects**0.5)))  # bulharske konstanty
-    font = ImageFont.load_default(font_size)
+    try:
+        # font supportingunicode is beter
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
+        )
+    except OSError:
+        font = ImageFont.load_default()
     rect_width = max(2, int(h * 0.005))
     for obj in objects:
         x1, y1, x2, y2 = obj["bbox"]
@@ -64,11 +71,15 @@ async def detect(image: UploadFile) -> JSONResponse:
     img_bytes = await image.read()
     try:
         logger.info("Running detection endpoint...")
-        response = detection_service.detect(img_bytes)
+        response = await run_in_threadpool(detection_service.detect, img_bytes)
         response_dict = response.model_dump()
+        # confidence_filter = lambda response_dict_objects: [
+        #     obj for obj in response_dict_objects if obj["confidence"] > 0.3
+        # ]
+        # response_dict["objects"] = confidence_filter(response_dict["objects"])
         colors = get_color_encoding(response_dict["objects"])
-        annotated_image_b64 = annotate_image(
-            img_bytes, response_dict["objects"], colors
+        annotated_image_b64 = await run_in_threadpool(
+            annotate_image, img_bytes, response_dict["objects"], colors
         )
         broadcast_message = {
             "objects": response_dict["objects"],
