@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import logging
 import random
 import time
@@ -115,6 +117,8 @@ PHRASES = {
 
 
 def get_number_word(language, count):
+    if count < 1:
+        count = 1
     lang_map = NUMBER_WORDS[language]
     if count in lang_map:
         return lang_map[count]
@@ -156,10 +160,6 @@ class Conversation:
                 list(set([label.encode("utf-8") for label in labels]))
             )
 
-    def _get_count_word(self, obj):
-        count = len(self.short_term_memory.get(obj, []))
-        return get_number_word(self.language, count)
-
     def get_sentence(self, unique_labels):
         lang = self.language
 
@@ -172,7 +172,7 @@ class Conversation:
                 patterns = PHRASES[lang]["SINGLE_FIRST_TIME"]
                 return random.choice(patterns).format(
                     obj=obj,
-                    count_word=self._get_count_word(obj),
+                    count_word=get_number_word(self.language, seen_count),
                 )
 
             # 2times
@@ -180,14 +180,14 @@ class Conversation:
                 patterns = PHRASES[lang]["SINGLE_SECOND_TIME"]
                 return random.choice(patterns).format(
                     obj=obj,
-                    count_word=self._get_count_word(obj),
+                    count_word=get_number_word(self.language, seen_count),
                 )
             # 3.time
             else:
                 patterns = PHRASES[lang]["SINGLE_AGAIN"]
                 return random.choice(patterns).format(
                     obj=obj,
-                    count_word=self._get_count_word(obj),
+                    count_word=get_number_word(self.language, seen_count),
                 )
         join_word = " a " if lang == "cs" else " and "
 

@@ -1,6 +1,5 @@
 import io
 import logging
-import random
 import sys
 import time
 
@@ -13,7 +12,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ROBOT_IP = "127.0.0.1"
-ROBOT_PORT = 35417
+ROBOT_PORT = 36797
 
 SERVER_URL = "http://0.0.0.0:8000"
 DASHBOARD_URL = SERVER_URL + "/dashboard"
@@ -41,6 +40,48 @@ class PepperClient:
         self.camera_handle = self.video.subscribeCamera("PepperYOLO", 0, 2, 11, 10)
         logger.info("Camera started")
 
+    @staticmethod
+    def _process_nao_image(nao_img):
+        width = nao_img[0]
+        height = nao_img[1]
+        data = nao_img[6]
+        logger.info("Processing image (%dx%d)", width, height)
+        image = Image.frombytes("RGB", (width, height), data)
+        img_buffer = io.BytesIO()
+        image.save(img_buffer, format="JPEG")
+        img_jpeg_bytes = img_buffer.getvalue()
+        return img_jpeg_bytes
+
+    def get_processed_data_from_server(self, img_jpeg_bytes):
+        try:
+            files = {
+                "image": ("capture.jpg", img_jpeg_bytes, "image/jpeg")
+            }
+            response = requests.post(DETECT_URL, files=files, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                self.handle_results(data)
+            else:
+                logger.warn(
+                    "Server returned %d", response.status_code)
+        except Exception, e:
+            logger.error(
+                "Network Request failed: %s", str(e))
+
+
+    def detect_and_speak(self):
+        logger.info("Taking picture")
+        nao_img = self.video.getImageRemote(self.camera_handle)
+
+        if nao_img is None:
+            logger.info("No picture taken. Returning no data.")
+            return
+
+        img_jpeg_bytes = self._process_nao_image(nao_img)
+        self.get_processed_data_from_server(img_jpeg_bytes)
+
+
+
     def loop(self):
         logger.info("Starting detection  loop")
         try:
@@ -51,44 +92,21 @@ class PepperClient:
                 if nao_img is None:
                     continue
 
-                width = nao_img[0]
-                height = nao_img[1]
-                raw_data = nao_img[6]
-                logger.info("Photo taken")
+                img_jpeg_bytes = self._process_nao_image(nao_img)
+                # import random
+                # pic = random.choice([
+                #     "/home/jakub-ciesko/Desktop/rezen.jpg",
+                #     "/home/jakub-ciesko/Desktop/kiri-mala.jpeg",
+                #     "/home/jakub-ciesko/Desktop/test-imgs/dogs.jpg",
+                #     "/home/jakub-ciesko/Desktop/test-imgs/oktober.jpg",
+                #     "/home/jakub-ciesko/Desktop/test-imgs/ja.jpg"
+                # ])
+                # image = Image.open(pic)
+                # img_buffer = io.BytesIO()
+                # image.save(img_buffer, format="JPEG")
+                # img_jpeg_bytes = img_buffer.getvalue()
 
-                image = Image.frombytes("RGB", (width, height), raw_data)
-
-
-                img_buffer = io.BytesIO()
-                image.save(img_buffer, format="JPEG")
-                img_jpeg_bytes = img_buffer.getvalue()
-
-                pic = random.choice([
-                    "/home/jakub-ciesko/Desktop/rezen.jpg",
-                    "/home/jakub-ciesko/Desktop/kiri-mala.jpeg",
-                    "/home/jakub-ciesko/Desktop/test-imgs/dogs.jpg",
-                    "/home/jakub-ciesko/Desktop/test-imgs/oktober.jpg",
-                    "/home/jakub-ciesko/Desktop/test-imgs/ja.jpg"
-                ])
-                image = Image.open(pic)
-                img_buffer = io.BytesIO()
-                image.save(img_buffer, format="JPEG")
-                img_jpeg_bytes = img_buffer.getvalue()
-                try:
-                    files = {
-                        "image": ("capture.jpg", img_jpeg_bytes, "image/jpeg")
-                    }
-                    response = requests.post(DETECT_URL, files=files, timeout=5)
-                    if response.status_code == 200:
-                        data = response.json()
-                        self.handle_results(data)
-                    else:
-                        logger.warn(
-                        "Server returned %d",  response.status_code)
-                except Exception, e:
-                    logger.error(
-                    "Network Request failed: %s" ,str(e))
-                # Sleep to control FPS (e.g., check every 2 seconds)
+                self.get_processed_data_from_server(img_jpeg_bytes)
                 time.sleep(2.0)
 
         except KeyboardInterrupt:
@@ -99,10 +117,12 @@ class PepperClient:
     def handle_results(self, data):
         objects = data.get("objects", [])
         if not objects:
+            logger.info("No objects detected.")
             return
 
         labels = [obj["label"] for obj in objects if obj.get("confidence", 0) > self.confidence_threshold]
         if not labels:
+            logger.info("No labels for objects detected.")
             return
 
         sentence = self.conversation.observe(labels)
@@ -113,7 +133,6 @@ class PepperClient:
         logger.info("Cleaning up")
         if self.camera_handle:
             self.video.unsubscribe(self.camera_handle)
-        # self.tablet.hideWebview()
         logger.info("Cleaned up")
 
 
