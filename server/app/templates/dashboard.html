@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="/static/pepper_icon.png"/>
     <script src="/static/js/dashboard_ws.js" defer></script>
     <script src="/static/js/dashboard_config.js" defer></script>
-    <script src="/static/js/dashboard_utils.js"></script>
+    <script src="/static/js/dashboard_utils.js" defer></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
 
@@ -56,7 +56,14 @@
     <div class="w-full max-w-3xl relative">
         <img id="annotated-image" class="w-full h-auto rounded border border-gray-300 shadow" src="/static/pepper_icon.png" alt="Annotated Detection Image">
     </div>
-
+    <div id="sentences" class="w-full max-w-3xl bg-white rounded shadow p-4 mb-6">
+        <h3 class="font-bold text-lg">
+            Pepper Says
+        </h3>
+        <div id="sentences-content" class="mt-2 space-y-2">
+            <p class="text-gray-500">No messages yet...</p>
+        </div>
+    </div>
     <!-- Detection Text Info -->
     <div id="detections" class="w-full max-w-3xl bg-white rounded shadow p-4 mb-6">
         <h3 class="font-bold text-lg cursor-pointer flex justify-between items-center" onclick="toggleSection('detections-content')">
@@ -67,5 +74,6 @@
             <p class="text-gray-500">No detections yet...</p>
         </div>
     </div>
+
 </body>
 </html>

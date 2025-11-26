@@ -37,7 +37,8 @@ class PepperObjectRecognition(object):
         self.video = self.session.service("ALVideoDevice")
 
         # Config of connection
-        self.server_url = "http://0.0.0.0:8000/api/detect"
+        self.server_base_url = "http://localhost:8000"
+        self.server_url = self.server_base_url + "/api/detect"
         self.conf_threshold = 0.3
 
         # Initialize Logic
@@ -108,16 +109,31 @@ class PepperObjectRecognition(object):
             self.logger.error("Network Request failed: %s", str(e))
         return data
 
+    def send_sentence_to_server(self, sentence):
+        try:
+            payload = {"sentence": sentence}
+            response = requests.post(
+                self.server_base_url + "/dashboard/sentence",
+                json=payload,
+                timeout=3
+            )
+            if response.status_code != 200:
+                self.logger.warn("Dashboard server returned %d", response.status_code)
+        except Exception as e:
+            self.logger.error("Failed sending sentence to dashboard: %s", str(e))
+
     def handle_processed_data(self, data):
         objects = data.get("objects", [])
         if not objects:
             self.logger.info("No objects detected.")
+            sentence = self.conversation.observe([])  # this lets the robot comment on lack of input :)
+            self.tts.say(sentence)
             return
 
         labels = [
             obj["label"]
             for obj in objects
-            if obj.get("confidence", 0) > self.conf_threshold
+            # if obj.get("confidence", 0) > self.conf_threshold  # offloaded to server
         ]
         if not labels:
             self.logger.info("No labels for objects detected.")
@@ -126,6 +142,7 @@ class PepperObjectRecognition(object):
         sentence = self.conversation.observe(labels)
         self.logger.info("[ROBOT]: %s", sentence)
         self.tts.say(sentence)
+        self.send_sentence_to_server(sentence)
 
     @qi.bind(returnType=qi.Void, paramsType=[])
     def stop(self):

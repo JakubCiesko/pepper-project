@@ -17,6 +17,7 @@
         <File name="services" src="scripts/stk/services.py" />
         <File name="conversation" src="scripts/conversation.py" />
         <File name="conversation" src="scripts/conversation.pyc" />
+        <File name="conversation_patterns" src="scripts/conversation_patterns.py" />
         <File name="__init__" src="scripts/stk/__init__.pyc" />
         <File name="events" src="scripts/stk/events.pyc" />
         <File name="logging" src="scripts/stk/logging.pyc" />

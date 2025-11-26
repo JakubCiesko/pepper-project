@@ -41,3 +41,19 @@ async def list_models():
         return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
+
+
+@router.post("/dashboard/sentence")
+async def dashboard_sentence(payload: dict):
+    """
+    Receive sentences spoken by Pepper and broadcast them to WebSocket clients.
+    Example payload: { "sentence": "Hello, I am Pepper!" }
+    """
+    sentence = payload.get("sentence", "")
+    if not sentence:
+        return {"status": "error", "msg": "No sentence"}
+
+    # Broadcast to all connected WebSocket clients
+    await ws_manager.broadcast({"type": "sentence", "text": sentence})
+
+    return {"status": "ok"}

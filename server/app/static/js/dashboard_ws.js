@@ -6,6 +6,11 @@ const annotatedImage = document.getElementById("annotated-image");
 ws.onmessage = function(event) {
     const data = JSON.parse(event.data);
 
+    if (data.type === "sentence") {
+        displayPepperSentence(data.text);
+        return;
+    }
+
     // Clear previous data
     detectionsContainer.innerHTML = "";
     if (data.objects && data.objects.length > 0) {
