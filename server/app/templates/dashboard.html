@@ -5,6 +5,9 @@
     <title>Pepper Object Detection Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/png" href="/static/pepper_icon.png"/>
+    <script src="/static/js/dashboard_ws.js" defer></script>
+    <script src="/static/js/dashboard_config.js" defer></script>
+    <script src="/static/js/dashboard_utils.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
 
@@ -18,6 +21,7 @@
             <span id="settings-arrow">▼</span>
         </h2>
         <div id="settings-content" class="mt-2 hidden">
+            <div id="status-message" class="mt-2 text-sm text-green-600 hidden"></div>
             <!-- Confidence Threshold -->
             <div class="w-full bg-gray-50 rounded shadow p-4 mb-4">
                 <label class="font-bold">Confidence Threshold</label>
@@ -63,156 +67,5 @@
             <p class="text-gray-500">No detections yet...</p>
         </div>
     </div>
-
-
-    <script>
-        const ws = new WebSocket(`ws://${location.host}/dashboard/events`);
-
-        const detectionsContainer = document.getElementById("detections-content");
-        const annotatedImage = document.getElementById("annotated-image");
-
-        ws.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-
-            // Clear previous data
-            detectionsContainer.innerHTML = "";
-            if (data.objects && data.objects.length > 0) {
-            data.objects.forEach(obj => {
-                const div = document.createElement("div");
-                div.className = "obj mb-2 p-2 rounded";
-
-                // Use color from backend colors dict
-                const labelColor = data.colors && data.colors[obj.label]
-                    ? `rgb(${data.colors[obj.label].join(",")})`
-                    : "#ddd";
-
-                div.style.backgroundColor = labelColor;
-                div.style.color = "black";
-
-                div.innerHTML = `<strong>${obj.label}</strong> (${obj.confidence.toFixed(2)}) - bbox: [${obj.bbox.map(x => x.toFixed(1)).join(", ")}]`;
-                detectionsContainer.appendChild(div);
-            });
-            } else {
-                detectionsContainer.innerHTML = `<p class="text-gray-500">No objects detected</p>`;
-            }
-            // image
-            if (data.image) {
-                annotatedImage.src = `data:image/jpeg;base64,${data.image}`;
-                //annotatedImage.classList.remove("hidden");
-            }
-            //else {
-            //    annotatedImage.classList.add("hidden");
-            //}
-        };
-        const slider = document.getElementById("threshold-slider");
-        const input = document.getElementById("threshold-input");
-
-        function update_conf_threshold(value) {
-          fetch("/api/config/threshold", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({threshold: value})
-            });
-        }
-        slider.addEventListener("input", () => {
-            input.value = slider.value;
-            update_conf_threshold(parseFloat(slider.value));
-        });
-
-        // slider update
-        input.addEventListener("change", () => {
-            let val = parseFloat(input.value);
-            if (isNaN(val)) val = 0; // invalid numbers
-            if (val < 0) val = 0;
-            if (val > 1) val = 1;
-            input.value = val.toFixed(2);
-            slider.value = val.toFixed(2);
-            update_conf_threshold(val.toFixed(2));
-        });
-        const modelSelect = document.getElementById("model-select");
-        const changeModelButton = document.getElementById("change-model");
-
-        //get available models from server
-        async function fetchModels() {
-            try {
-                const res = await fetch("/dashboard/config/get_models");
-                const data = await res.json();
-                modelSelect.innerHTML = "";
-                data.models.forEach(model => {
-                    const opt = document.createElement("option");
-                    opt.value = model;
-                    opt.textContent = model;
-                    modelSelect.appendChild(opt);
-                });
-            } catch(err) {
-                console.error("Failed to fetch models:", err);
-                modelSelect.innerHTML = "<option>Error loading models</option>";
-            }
-        }
-
-        // Switch model
-        changeModelButton.addEventListener("click", async () => {
-            const selectedModel = modelSelect.value;
-            try {
-                const res = await fetch("/api/config/model", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({model: selectedModel})
-                });
-                const data = await res.json();
-                // this will pop up window, maybe add progress bar?
-                if (data.ok) {
-                    alert(`Model changed to: ${data.selected_model}`);
-                } else {
-                    alert(`Failed to change model: ${data.error}`);
-                }
-            } catch(err) {
-                console.error("Error changing model:", err);
-                alert("Error changing model");
-            }
-        });
-
-        // initial model fetching
-        fetchModels();
-
-        // language setting
-        const languageSelect = document.getElementById("language-select");
-        const changeLanguageButton = document.getElementById("change-language");
-
-        // Switch language
-        changeLanguageButton.addEventListener("click", async () => {
-            const selectedLang = languageSelect.value;
-            try {
-                const res = await fetch("/api/config/language", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({language: selectedLang})
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    alert(`Language changed to: ${data.language}`);
-                } else {
-                    alert(`Failed to change language: ${data.error || "unknown error"}`);
-                }
-            } catch(err) {
-                console.error("Error changing language:", err);
-                alert("Error changing language");
-            }
-        });
-
-        // collapsable utility
-        function toggleSection(id) {
-            const content = document.getElementById(id);
-            const arrow = document.getElementById(id.replace('-content','-arrow'));
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                arrow.textContent = '▲';
-            } else {
-                content.classList.add('hidden');
-                arrow.textContent = '▼';
-            }
-        }
-    </script>
-
 </body>
 </html>
