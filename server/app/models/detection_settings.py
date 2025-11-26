@@ -6,13 +6,17 @@ from pydantic_settings import SettingsConfigDict
 import torch
 
 DEFAULT_MODEL_NAME = "rtdetr-x.pt"
+DEFAULT_LANGUAGE = "en"
 DETECTION_CONFIG = {
     "confidence_threshold": None,
     "model": DEFAULT_MODEL_NAME,
+    "language": DEFAULT_LANGUAGE,
 }
 
 
 class YOLOSettings(BaseSettings):
+    """Settable by enviroment variables PEPPER_{var}"""
+
     model_config = SettingsConfigDict(env_prefix="PEPPER_")
     model_name: str = Field(DEFAULT_MODEL_NAME, description="Model name")
     model_url: str = Field(
@@ -26,8 +30,9 @@ class YOLOSettings(BaseSettings):
         None,
         description="device for loading and using model, default to cuda if not set and available",
     )
+    # will not let user set this, as this should be set by the one who sets up the server
     imgsz: int = Field(640, description="image size")
-    language: str = Field("en", description="language of labels")
+    language: str = Field(DEFAULT_LANGUAGE, description="language of labels")
 
     @property
     def device_actual(self):

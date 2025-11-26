@@ -133,3 +133,29 @@ async def set_model(request: Request):
     await DETECTION_SERVICE.reload_with_model(model_name)
     logger.info(f"Detection config: {DETECTION_CONFIG}")
     return {"ok": True, "selected_model": model_name}
+
+
+@router.post("/config/language")
+async def set_language(request: Request):
+    """
+    API config endpoint which sets the language for label translations.
+
+    Accepted values: any language supported by googletrans (e.g., 'en', 'cs', 'fr'...).
+    After changing the language, translations are reloaded in DetectionService.
+    """
+    data = await request.json()
+    lang = data.get("language", "en").strip().lower()
+
+    global DETECTION_SERVICE, DETECTION_CONFIG
+
+    logger.info(f"Received request to change detection language to: {lang}")
+    DETECTION_CONFIG["language"] = lang
+    DETECTION_SERVICE.settings.language = lang
+    DETECTION_SERVICE.translate_to = lang
+    DETECTION_SERVICE.translation_path = DETECTION_SERVICE.model_path.with_suffix(
+        f".{DETECTION_SERVICE.translate_to}.labels.json"
+    )
+    await DETECTION_SERVICE.initialize_translations()
+
+    logger.info(f"Language set to {lang}")
+    return {"ok": True, "language": lang}
