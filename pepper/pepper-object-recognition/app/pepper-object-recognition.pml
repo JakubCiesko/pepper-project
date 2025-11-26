@@ -8,6 +8,7 @@
         <Dialog name="pepper-object-recognition" src="pepper-object-recognition/pepper-object-recognition.dlg" />
     </Dialogs>
     <Resources>
+        <File name="icon" src="icon.png" />
         <File name="pepperobjectrecognition" src="scripts/pepperobjectrecognition.py" />
         <File name="__init__" src="scripts/stk/__init__.py" />
         <File name="events" src="scripts/stk/events.py" />

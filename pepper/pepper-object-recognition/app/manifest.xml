@@ -4,7 +4,7 @@
   <name lang="en_US">pepper-object-recognition</name>
  </names>
  <descriptions>
-  <description lang="en_US">A simple app consisting of a collaborative dialogue talking to a service.</description>
+  <description lang="en_US">A simple app consisting of a collaborative dialogue talking to a service which runs image recognition using remote GPU-powered machine.</description>
  </descriptions>
  <supportedLanguages>
   <language>en_US</language>
