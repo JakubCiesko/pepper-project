@@ -10,22 +10,53 @@
 
     <h1 class="text-3xl font-bold mb-6">Pepper Live Object Detection Dashboard</h1>
 
-    <!-- Annotated Image
-    default it just random ai generted image -->
+
+
+    <div class="w-full max-w-3xl bg-white rounded shadow p-4 mb-6" id="settings">
+        <h2 class="font-bold text-xl cursor-pointer flex justify-between items-center" onclick="toggleSection('settings-content')">
+            Detection Settings
+            <span id="settings-arrow">▼</span>
+        </h2>
+        <div id="settings-content" class="mt-2 hidden">
+            <!-- Confidence Threshold -->
+            <div class="w-full bg-gray-50 rounded shadow p-4 mb-4">
+                <label class="font-bold">Confidence Threshold</label>
+                <div class="flex items-center gap-4 mt-2">
+                    <input type="range" id="threshold-slider" min="0" max="1" step="0.01" value="0.25" class="flex-1">
+                    <input type="number" id="threshold-input" min="0" max="1" step="0.01" value="0.25" class="w-20 border rounded px-2 py-1">
+                </div>
+            </div>
+            <!-- Model Selection -->
+            <div class="w-full bg-gray-50 rounded shadow p-4 mb-4">
+                <label class="font-bold">Detection Model</label>
+                <select id="model-select" class="w-full border rounded px-2 py-1 mt-2">
+                    <option>Loading models...</option>
+                </select>
+                <button id="change-model" class="mt-2 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Change Model</button>
+            </div>
+        </div>
+    </div>
+    <!-- Annotated Image - default it just random ai generted image -->
     <div class="w-full max-w-3xl relative">
         <img id="annotated-image" class="w-full h-auto rounded border border-gray-300 shadow" src="/static/pepper_icon.png" alt="Annotated Detection Image">
     </div>
 
     <!-- Detection Text Info -->
     <div id="detections" class="w-full max-w-3xl bg-white rounded shadow p-4 mb-6">
-        <p class="text-gray-500">No detections yet...</p>
+        <h3 class="font-bold text-lg cursor-pointer flex justify-between items-center" onclick="toggleSection('detections-content')">
+            Detected Objects
+            <span id="detections-arrow">▲</span>
+        </h3>
+        <div id="detections-content" class="mt-2">
+            <p class="text-gray-500">No detections yet...</p>
+        </div>
     </div>
 
 
     <script>
         const ws = new WebSocket(`ws://${location.host}/dashboard/events`);
 
-        const detectionsContainer = document.getElementById("detections");
+        const detectionsContainer = document.getElementById("detections-content");
         const annotatedImage = document.getElementById("annotated-image");
 
         ws.onmessage = function(event) {
@@ -61,6 +92,89 @@
             //    annotatedImage.classList.add("hidden");
             //}
         };
+        const slider = document.getElementById("threshold-slider");
+        const input = document.getElementById("threshold-input");
+
+        function update_conf_threshold(value) {
+          fetch("/api/config/threshold", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({threshold: value})
+            });
+        }
+        slider.addEventListener("input", () => {
+            input.value = slider.value;
+            update_conf_threshold(parseFloat(slider.value));
+        });
+
+        // slider update
+        input.addEventListener("change", () => {
+            let val = parseFloat(input.value);
+            if (isNaN(val)) val = 0; // invalid numbers
+            if (val < 0) val = 0;
+            if (val > 1) val = 1;
+            input.value = val.toFixed(2);
+            slider.value = val.toFixed(2);
+            update_conf_threshold(val.toFixed(2));
+        });
+        const modelSelect = document.getElementById("model-select");
+        const changeModelButton = document.getElementById("change-model");
+
+        //get available models from server
+        async function fetchModels() {
+            try {
+                const res = await fetch("/dashboard/config/get_models");
+                const data = await res.json();
+                modelSelect.innerHTML = "";
+                data.models.forEach(model => {
+                    const opt = document.createElement("option");
+                    opt.value = model;
+                    opt.textContent = model;
+                    modelSelect.appendChild(opt);
+                });
+            } catch(err) {
+                console.error("Failed to fetch models:", err);
+                modelSelect.innerHTML = "<option>Error loading models</option>";
+            }
+        }
+
+        // Switch model
+        changeModelButton.addEventListener("click", async () => {
+            const selectedModel = modelSelect.value;
+            try {
+                const res = await fetch("/api/config/model", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({model: selectedModel})
+                });
+                const data = await res.json();
+                // this will pop up window, maybe add progress bar?
+                if (data.ok) {
+                    alert(`Model changed to: ${data.selected_model}`);
+                } else {
+                    alert(`Failed to change model: ${data.error}`);
+                }
+            } catch(err) {
+                console.error("Error changing model:", err);
+                alert("Error changing model");
+            }
+        });
+
+        // initial model fetching
+        fetchModels();
+
+        // collapsable utility
+        function toggleSection(id) {
+            const content = document.getElementById(id);
+            const arrow = document.getElementById(id.replace('-content','-arrow'));
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                arrow.textContent = '▲';
+            } else {
+                content.classList.add('hidden');
+                arrow.textContent = '▼';
+            }
+        }
     </script>
 
 </body>

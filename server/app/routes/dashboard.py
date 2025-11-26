@@ -6,6 +6,7 @@ from fastapi import WebSocket
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.routes.detect import DETECTION_SERVICE
 from app.services.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,8 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/dashboard")
 async def dashboard(request: Request) -> HTMLResponse:
+    """Serves html dashboard page."""
+    logger.info("Received request to fetch dashboard html")
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 
@@ -28,3 +31,13 @@ async def dashboard_ws(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Dashboard Events WebSocker Error: {e}")
         ws_manager.disconnect(websocket)
+
+
+@router.get("/dashboard/config/get_models")
+async def list_models():
+    """Return a list of available detection models stored in detection_models folder."""
+    try:
+        models = DETECTION_SERVICE.available_models
+        return {"models": models}
+    except Exception as e:
+        return {"models": [], "error": str(e)}

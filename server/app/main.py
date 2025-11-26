@@ -28,7 +28,7 @@ logger.info("Initializing FastAPI server...")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Startup: Initializing Detection Service Translations...")
-    await detect.detection_service.initialize_translations()
+    await detect.DETECTION_SERVICE.initialize_translations()
     logger.info("Startup: Translations loaded.")
     yield
     logger.info("Shutdown: Cleaning up...")

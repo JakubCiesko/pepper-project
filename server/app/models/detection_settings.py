@@ -5,10 +5,16 @@ from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 import torch
 
+DEFAULT_MODEL_NAME = "rtdetr-x.pt"
+DETECTION_CONFIG = {
+    "confidence_threshold": None,
+    "model": DEFAULT_MODEL_NAME,
+}
+
 
 class YOLOSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PEPPER_")
-    model_name: str = Field("rtdetr-x.pt", description="Model name")
+    model_name: str = Field(DEFAULT_MODEL_NAME, description="Model name")
     model_url: str = Field(
         "https://github.com/ultralytics/assets/releases/download/v8.3.0/rtdetr-x.pt",
         description="Download URL",
@@ -20,7 +26,7 @@ class YOLOSettings(BaseSettings):
         None,
         description="device for loading and using model, default to cuda if not set and available",
     )
-    imgsz: int = Field(1280, description="image size")
+    imgsz: int = Field(640, description="image size")
     language: str = Field("en", description="language of labels")
 
     @property

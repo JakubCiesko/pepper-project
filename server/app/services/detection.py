@@ -2,6 +2,7 @@ import asyncio
 import io
 import json
 import logging
+import os
 from pathlib import Path
 import urllib.request
 
@@ -24,7 +25,7 @@ def download_model(model_url: str, model_path: Path):
 
 class DetectionService:
     def __init__(self, settings: YOLOSettings = None):
-        self.settings = settings or YOLOSettings(language="cs")
+        self.settings = settings or YOLOSettings()
         self.model_path: Path = self.settings.model_path
         self.device = self.settings.device_actual
         self.imgsz = self.settings.imgsz
@@ -35,6 +36,11 @@ class DetectionService:
             f".{self.translate_to}.labels.json"
         )
         self.translations = {}
+
+    @property
+    def available_models(self) -> list[str]:
+        models_dir = self.model_path.parent  # pretty dirty
+        return [f for f in os.listdir(models_dir) if f.endswith(".pt")]
 
     def load_model(self):
         if not self.model_path.exists():
@@ -110,3 +116,15 @@ class DetectionService:
                 )
         logger.info(f"Found {len(objects)} objects in provided image.")
         return DetectionResponse(objects=objects)
+
+    async def reload_with_model(self, model_name: str):
+        logger.info(f"Reloading DetectionService with model {model_name}")
+        settings = YOLOSettings(model_name=model_name)
+        self.settings = settings
+        self.model_path = settings.model_path
+        self.model = self.load_model()
+        self.translation_path = self.model_path.with_suffix(
+            f".{self.translate_to}.labels.json"
+        )
+        self.translations = {}
+        await self.initialize_translations()

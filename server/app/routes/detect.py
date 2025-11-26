@@ -5,6 +5,7 @@ import logging
 import random
 
 from fastapi import APIRouter
+from fastapi import Request
 from fastapi import UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
@@ -12,12 +13,13 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
+from app.models.detection_settings import DETECTION_CONFIG
 from app.services.detection import DetectionService
 from app.services.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-detection_service = DetectionService()
+DETECTION_SERVICE = DetectionService()
 
 
 def get_color_encoding(objects: list[dict]) -> dict[str, str]:
@@ -68,15 +70,19 @@ def annotate_image(
 
 @router.post("/detect")
 async def detect(image: UploadFile) -> JSONResponse:
+    """API endpoint which runs object recognition inference on a single image instance."""
     img_bytes = await image.read()
     try:
         logger.info("Running detection endpoint...")
-        response = await run_in_threadpool(detection_service.detect, img_bytes)
+        response = await run_in_threadpool(DETECTION_SERVICE.detect, img_bytes)
         response_dict = response.model_dump()
-        # confidence_filter = lambda response_dict_objects: [
-        #     obj for obj in response_dict_objects if obj["confidence"] > 0.3
-        # ]
-        # response_dict["objects"] = confidence_filter(response_dict["objects"])
+        confidence_threshold = DETECTION_CONFIG.get("confidence_threshold")
+        if confidence_threshold is not None:
+            response_dict["objects"] = [
+                obj
+                for obj in response_dict["objects"]
+                if obj["confidence"] > confidence_threshold
+            ]
         colors = get_color_encoding(response_dict["objects"])
         annotated_image_b64 = await run_in_threadpool(
             annotate_image, img_bytes, response_dict["objects"], colors
@@ -91,3 +97,39 @@ async def detect(image: UploadFile) -> JSONResponse:
     except Exception as e:
         logger.error(f"Detection failed: {e}")
         return JSONResponse(content={"error": "Inference failed", "detail": str(e)})
+
+
+@router.post("/config/threshold")
+async def set_threshold(request: Request):
+    """Api config endpoint which sets detection threshold.
+    Object with confidence below threshold will be ignored."""
+    data = await request.json()
+    logger.info(
+        f"Received request to change confidence threshold to {data['threshold']}"
+    )
+    global DETECTION_CONFIG
+    DETECTION_CONFIG["confidence_threshold"] = float(data["threshold"])
+    logger.info(
+        f"Threshold set to {DETECTION_CONFIG['confidence_threshold']}. Detection config: {DETECTION_CONFIG}"
+    )
+    return {"ok": True, "threshold": DETECTION_CONFIG["confidence_threshold"]}
+
+
+@router.post("/config/model")
+async def set_model(request: Request):
+    """Api config endpoint which sets detection model from the possible already downloaded detection models.
+
+    NOTE: run model download manually."""
+    data = await request.json()
+
+    global DETECTION_SERVICE, DETECTION_CONFIG
+
+    logger.info(f"Received request to change detection model config with: {data}")
+    model_name = data.get("model")
+    if model_name not in DETECTION_SERVICE.available_models:
+        return {"ok": False, "error": "Model not available"}
+    logger.info("Reloading detection service with model: " + model_name)
+    DETECTION_CONFIG["model"] = model_name
+    await DETECTION_SERVICE.reload_with_model(model_name)
+    logger.info(f"Detection config: {DETECTION_CONFIG}")
+    return {"ok": True, "selected_model": model_name}
