@@ -5,3 +5,6 @@ server/storage/*
 !server/storage/.gitkeep
 **/__pycache__/
 **/.idea/
+**.pyc
+pepper/conversation.py
+pepper/pepper_client.py
