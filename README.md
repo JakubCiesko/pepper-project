@@ -14,4 +14,7 @@ The system is designed for **low-latency inference**, **robust robot–server co
 
 ---
 
+Run server-side in Google Colab with Free GPU: [https://colab.research.google.com/drive/1OBGuUm6ZNsYcBZLTqMpQPIfEJuwMMTJc?usp=sharing](https://colab.research.google.com/drive/1OBGuUm6ZNsYcBZLTqMpQPIfEJuwMMTJc?usp=sharing)
+
+---
 **Author: Jakub Ciesko**
